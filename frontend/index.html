@@ -44,7 +44,7 @@
     <div class="modal" ng-click="$event.stopPropagation()">
       <h3>Register Device</h3>
       <input type="text" placeholder="Device name" ng-model="vm.registerForm.name" class="input">
-      <select ng-model="vm.registerForm.deviceType" class="input">
+      <select ng-model="vm.registerForm.deviceType" class="input" aria-label="Device type">
         <option value="mobile">Mobile</option>
         <option value="tablet">Tablet</option>
         <option value="iot-sensor">IoT Sensor</option>
@@ -115,7 +115,7 @@
 
         <div class="health-row">
           <div class="health-bar-track">
-            <div class="health-bar-fill" ng-class="'fill-' + d.healthStatus" style="width: {{ d.healthScore }}%"></div>
+            <div class="health-bar-fill" ng-class="'fill-' + d.healthStatus" ng-style="{ width: d.healthScore + '%' }"></div>
           </div>
           <div class="health-score" ng-class="'health-' + d.healthStatus">{{ d.healthScore }}</div>
         </div>
