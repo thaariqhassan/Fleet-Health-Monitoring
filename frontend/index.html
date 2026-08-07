@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="fleetApp">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Health Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.8.3/angular.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body ng-controller="FleetController as vm">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">FLEET<span class="brand-accent">HEALTH</span></span>
+    </div>
+    <div class="topbar-right">
+      <span class="clock">{{ vm.clock }}</span>
+      <button class="btn btn-ghost" ng-if="!vm.isLoggedIn" ng-click="vm.showLogin = true">Admin Login</button>
+      <span class="admin-pill" ng-if="vm.isLoggedIn">● admin session active</span>
+      <button class="btn btn-ghost" ng-if="vm.isLoggedIn" ng-click="vm.logout()">Log out</button>
+    </div>
+  </header>
+
+  <!-- Login modal -->
+  <div class="modal-backdrop" ng-if="vm.showLogin" ng-click="vm.showLogin = false">
+    <div class="modal" ng-click="$event.stopPropagation()">
+      <h3>Admin Login</h3>
+      <p class="modal-hint">Demo credentials: admin / admin123</p>
+      <input type="text" placeholder="Username" ng-model="vm.loginForm.username" class="input">
+      <input type="password" placeholder="Password" ng-model="vm.loginForm.password" class="input">
+      <div class="modal-error" ng-if="vm.loginError">{{ vm.loginError }}</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" ng-click="vm.showLogin = false">Cancel</button>
+        <button class="btn btn-primary" ng-click="vm.login()">Sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register device modal -->
+  <div class="modal-backdrop" ng-if="vm.showRegister" ng-click="vm.showRegister = false">
+    <div class="modal" ng-click="$event.stopPropagation()">
+      <h3>Register Device</h3>
+      <input type="text" placeholder="Device name" ng-model="vm.registerForm.name" class="input">
+      <select ng-model="vm.registerForm.deviceType" class="input">
+        <option value="mobile">Mobile</option>
+        <option value="tablet">Tablet</option>
+        <option value="iot-sensor">IoT Sensor</option>
+        <option value="rugged-scanner">Rugged Scanner</option>
+      </select>
+      <input type="text" placeholder="OS (e.g. Android 14)" ng-model="vm.registerForm.os" class="input">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" ng-click="vm.showRegister = false">Cancel</button>
+        <button class="btn btn-primary" ng-click="vm.registerDevice()">Register</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <section class="summary-strip">
+      <div class="stat-card">
+        <div class="stat-value">{{ vm.summary.total || 0 }}</div>
+        <div class="stat-label">Total Devices</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value status-online">{{ vm.summary.online || 0 }}</div>
+        <div class="stat-label">Online</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value status-offline">{{ vm.summary.offline || 0 }}</div>
+        <div class="stat-label">Offline</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value health-healthy">{{ vm.summary.healthy || 0 }}</div>
+        <div class="stat-label">Healthy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value health-warning">{{ vm.summary.warning || 0 }}</div>
+        <div class="stat-label">Warning</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value health-critical">{{ vm.summary.critical || 0 }}</div>
+        <div class="stat-label">Critical</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <h2>Devices <span class="toolbar-sub">auto-refreshing every 5s</span></h2>
+      <div class="toolbar-actions">
+        <span class="last-refresh" ng-if="vm.lastRefresh">Updated {{ vm.lastRefresh }}</span>
+        <button class="btn btn-primary" ng-click="vm.showRegister = true">+ Register Device</button>
+      </div>
+    </section>
+
+    <div class="empty-state" ng-if="vm.devices.length === 0 && !vm.loading">
+      No devices yet. Register one, or run <code>npm run simulate</code> in the backend to spin up a fake fleet.
+    </div>
+
+    <section class="device-grid">
+      <div class="device-card" ng-repeat="d in vm.devices track by d.id" ng-class="'health-border-' + d.healthStatus">
+
+        <div class="device-card-top">
+          <div>
+            <div class="device-name">{{ d.name }}</div>
+            <div class="device-meta">{{ d.deviceType }} &middot; {{ d.os }}</div>
+          </div>
+          <div class="status-dot-wrap">
+            <span class="status-dot" ng-class="'dot-' + d.status"></span>
+            <span class="status-text">{{ d.status }}</span>
+          </div>
+        </div>
+
+        <div class="health-row">
+          <div class="health-bar-track">
+            <div class="health-bar-fill" ng-class="'fill-' + d.healthStatus" style="width: {{ d.healthScore }}%"></div>
+          </div>
+          <div class="health-score" ng-class="'health-' + d.healthStatus">{{ d.healthScore }}</div>
+        </div>
+
+        <div class="device-stats">
+          <div class="mini-stat">
+            <span class="mini-label">Battery</span>
+            <span class="mini-value" ng-class="{'mini-danger': d.batteryLevel <= 20}">{{ d.batteryLevel }}%</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">Storage free</span>
+            <span class="mini-value">{{ d.storageFreeMb }} MB</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">Crashes</span>
+            <span class="mini-value" ng-class="{'mini-danger': d.crashCount >= 3}">{{ d.crashCount }}</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">Last check-in</span>
+            <span class="mini-value">{{ vm.formatLastSeen(d.lastHeartbeat) }}</span>
+          </div>
+        </div>
+
+        <div class="reasons" ng-if="d.healthReasons.length">
+          <span class="reason-chip" ng-repeat="r in d.healthReasons">{{ r }}</span>
+        </div>
+
+        <div class="device-actions" ng-if="vm.isLoggedIn">
+          <button class="btn btn-small" ng-click="vm.sendCommand(d, 'lock')" ng-disabled="d.status === 'locked'">Lock</button>
+          <button class="btn btn-small" ng-click="vm.sendCommand(d, 'unlock')" ng-disabled="d.status !== 'locked'">Unlock</button>
+          <button class="btn btn-small btn-warn" ng-click="vm.sendCommand(d, 'wipe')">Wipe</button>
+          <button class="btn btn-small btn-danger" ng-click="vm.deleteDevice(d)">Remove</button>
+        </div>
+        <div class="device-actions-hint" ng-if="!vm.isLoggedIn">Log in as admin to send commands</div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
